@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class AuthService {
-  static const String baseUrl = "https://backend-abhinav-tracking.onrender.com";
+  static const String baseUrl = "https://backend-abhinav-tracking.onrender.com/api/auth/login";
 
 
   static String? token;
@@ -10,7 +10,7 @@ class AuthService {
 
   static Future<bool> login(String mobile, String password) async {
     try {
-      final url = Uri.parse("$baseUrl/login");
+      final url = Uri.parse("$baseUrl/auth/login");
 
       final response = await http.post(
         url,
