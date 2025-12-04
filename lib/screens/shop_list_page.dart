@@ -47,14 +47,18 @@ class _ShopListPageState extends State<ShopListPage>
   }
 
   void _applyRoleFilters() {
-    String role = widget.user["role"] ?? "";
-    String segment = widget.user["segment"] ?? "";
+  String role = widget.user["role"] ?? "";
+  String segment = widget.user["segment"] ?? "";
 
+  if (role.toLowerCase() == "master") {
+    filteredShops = shops;       // MASTER sees all shops
+  } else {
     filteredShops = shops.where(
       (s) => s.segment.trim().toLowerCase() == segment.trim().toLowerCase()
-).toList();
-
+    ).toList();
   }
+}
+
 
   List<ShopModel> _searchFiltered() {
     return filteredShops.where((shop) {
