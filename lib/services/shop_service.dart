@@ -1,0 +1,91 @@
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import '../models/shop_model.dart';
+import '../services/auth_service.dart';
+
+class ShopService {
+  // USE YOUR REAL WORKING IP
+  static const String base = "http://192.168.159.43:5000/api";
+
+  String get shopBaseUrl => "$base/shop";
+  String get pendingBaseUrl => "$base/pending";
+
+  /// =============================
+  /// 🚀 GET ALL APPROVED SHOPS
+  /// =============================
+  Future<List<ShopModel>> getShops() async {
+    final res = await http.get(
+      Uri.parse("$shopBaseUrl/all"),
+      headers: {"Authorization": "Bearer ${AuthService.token}"},
+    );
+
+    if (res.statusCode != 200) return [];
+
+    final body = jsonDecode(res.body);
+
+    // Backend response = { status: success, shops: [...] }
+    final List shops = body["shops"] ?? [];
+
+    return shops.map((e) => ShopModel.fromJson(e)).toList();
+  }
+
+  /// =============================
+  /// 🚀 ADD PENDING SHOP (SALES)
+  /// =============================
+  Future<bool> addPendingShop({
+    required String name,
+    required String address,
+    required double lat,
+    required double lng,
+  }) async {
+    final payload = {
+      "shop_name": name,
+      "address": address,
+      "lat": lat,
+      "lng": lng,
+      "segment": AuthService.currentUser?["segment"] ?? "all",
+      "created_by": AuthService.currentUser?["user_id"] ?? "",
+    };
+
+    final res = await http.post(
+      Uri.parse("$pendingBaseUrl/add"),
+      headers: {
+        "Authorization": "Bearer ${AuthService.token}",
+        "Content-Type": "application/json",
+      },
+      body: jsonEncode(payload),
+    );
+
+    return res.statusCode == 200;
+  }
+
+  /// =============================
+  /// 🚀 OLD DIRECT ADD SHOP (MASTER)
+  /// =============================
+  Future<bool> addShop(ShopModel shop) async {
+    final res = await http.post(
+      Uri.parse("$shopBaseUrl/add"),
+      headers: {
+        "Authorization": "Bearer ${AuthService.token}",
+        "Content-Type": "application/json",
+      },
+      body: jsonEncode(shop.toJson()),
+    );
+
+    return res.statusCode == 200;
+  }
+
+  /// =============================
+  /// 🚀 APPROVE SHOP (MASTER)
+  /// =============================
+  Future<bool> approveShop(String mongoId) async {
+    final res = await http.post(
+      Uri.parse("$pendingBaseUrl/approve/$mongoId"),
+      headers: {
+        "Authorization": "Bearer ${AuthService.token}",
+      },
+    );
+
+    return res.statusCode == 200;
+  }
+}
