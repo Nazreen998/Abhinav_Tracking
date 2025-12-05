@@ -8,7 +8,7 @@ import '../services/auth_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
-// For Web Camera
+// FOR WEB CAMERA DETECTION
 import 'dart:html' as html;
 
 class AddShopPage extends StatefulWidget {
@@ -22,7 +22,7 @@ class _AddShopPageState extends State<AddShopPage> {
   final TextEditingController nameController = TextEditingController();
   final TextEditingController addressController = TextEditingController();
 
-  File? imageFile;     
+  File? imageFile;
   String? base64Image;
 
   double? lat;
@@ -30,9 +30,26 @@ class _AddShopPageState extends State<AddShopPage> {
 
   bool loading = false;
 
-  // ================================
-  // MAIN PICK PHOTO POPUP
-  // ================================
+
+  // ==========================================================
+  // CAMERA DETECTION (WEB DESKTOP FAILS WITHOUT THIS)
+  // ==========================================================
+  Future<bool> hasWebCamera() async {
+    try {
+      var devices = await html.window.navigator.mediaDevices?.enumerateDevices();
+      if (devices == null) return false;
+
+      return devices.any((d) => d.kind == "videoinput");
+    } catch (e) {
+      print("Camera detection error: $e");
+      return false;
+    }
+  }
+
+
+  // ==========================================================
+  // POPUP: CAMERA OR GALLERY
+  // ==========================================================
   Future pickPhoto() async {
     showModalBottomSheet(
       context: context,
@@ -43,8 +60,22 @@ class _AddShopPageState extends State<AddShopPage> {
               ListTile(
                 leading: const Icon(Icons.camera_alt),
                 title: const Text("Camera"),
-                onTap: () {
+                onTap: () async {
                   Navigator.pop(context);
+
+                  // 🚨 WEB CAMERA CHECK
+                  if (kIsWeb) {
+                    bool ok = await hasWebCamera();
+
+                    if (!ok) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text("No Camera Detected")),
+                      );
+                      _pickFromGallery(); // fallback
+                      return;
+                    }
+                  }
+
                   _pickFromCamera();
                 },
               ),
@@ -63,14 +94,14 @@ class _AddShopPageState extends State<AddShopPage> {
     );
   }
 
-  // ================================
-  // CAMERA PICKER (WEB + MOBILE)
-  // ================================
+
+  // ==========================================================
+  // CAMERA MODE (WEB + MOBILE)
+  // ==========================================================
   Future _pickFromCamera() async {
     if (kIsWeb) {
       final html.FileUploadInputElement input = html.FileUploadInputElement();
 
-      // Best possible browser camera request
       input.accept = 'image/*;capture=camera';
 
       input.click();
@@ -95,7 +126,7 @@ class _AddShopPageState extends State<AddShopPage> {
       return;
     }
 
-    // Mobile camera
+    // ANDROID / IOS CAMERA
     final picked = await ImagePicker().pickImage(source: ImageSource.camera);
 
     if (picked != null) {
@@ -107,9 +138,11 @@ class _AddShopPageState extends State<AddShopPage> {
     }
   }
 
-  // ================================
-  // GALLERY / FILE PICKER (ALL DEVICES)
-  // ================================
+
+
+  // ==========================================================
+  // GALLERY / FILE PICKER
+  // ==========================================================
   Future _pickFromGallery() async {
     if (kIsWeb) {
       final result = await FilePicker.platform.pickFiles(
@@ -140,7 +173,7 @@ class _AddShopPageState extends State<AddShopPage> {
       return;
     }
 
-    // Android/iOS gallery
+    // ANDROID / IOS GALLERY
     final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
 
     if (picked != null) {
@@ -152,9 +185,11 @@ class _AddShopPageState extends State<AddShopPage> {
     }
   }
 
-  // ================================
+
+
+  // ==========================================================
   // GET LOCATION
-  // ================================
+  // ==========================================================
   Future getLocation() async {
     LocationPermission perm = await Geolocator.requestPermission();
 
@@ -174,9 +209,11 @@ class _AddShopPageState extends State<AddShopPage> {
     setState(() {});
   }
 
-  // ================================
+
+
+  // ==========================================================
   // SUBMIT SHOP
-  // ================================
+  // ==========================================================
   Future submit() async {
     if (nameController.text.isEmpty ||
         addressController.text.isEmpty ||
@@ -231,9 +268,11 @@ class _AddShopPageState extends State<AddShopPage> {
     }
   }
 
-  // ================================
+
+
+  // ==========================================================
   // UI
-  // ================================
+  // ==========================================================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -242,8 +281,7 @@ class _AddShopPageState extends State<AddShopPage> {
           gradient: LinearGradient(
             colors: [Color(0xFF007BFF), Color(0xFF66B2FF), Color(0xFFB8E0FF)],
             begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-          ),
+            end: Alignment.bottomCenter),
         ),
         child: SafeArea(
           child: Column(
@@ -302,8 +340,7 @@ class _AddShopPageState extends State<AddShopPage> {
 
                       const SizedBox(height: 20),
 
-                      if (lat != null)
-                        Text("Lat: $lat\nLng: $lng"),
+                      if (lat != null) Text("Lat: $lat\nLng: $lng"),
 
                       const SizedBox(height: 25),
 
@@ -323,6 +360,7 @@ class _AddShopPageState extends State<AddShopPage> {
       ),
     );
   }
+
 
   Widget _input(TextEditingController c, String label) {
     return TextField(

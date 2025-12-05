@@ -22,7 +22,7 @@ class _AbhinavAppState extends State<AbhinavApp> {
   @override
   void initState() {
     super.initState();
-    _loadInitialUser();
+         _loadInitialUser();
   }
 
   Future<void> _loadInitialUser() async {
