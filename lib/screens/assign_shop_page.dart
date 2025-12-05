@@ -1,4 +1,7 @@
+// ignore_for_file: avoid_print
+
 import 'dart:math';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 
@@ -41,63 +44,112 @@ class _AssignShopPageState extends State<AssignShopPage> {
     loadInitial();
   }
 
+  // -----------------------------
+  // INITIAL DATA LOAD
+  // -----------------------------
   Future<void> loadInitial() async {
     setState(() => loading = true);
+
+    if (AuthService.token == null) {
+      await AuthService.init();
+    }
 
     String role = AuthService.currentUser?["role"] ?? "";
     String segment = AuthService.currentUser?["segment"] ?? "";
 
     users = await userService.getUsers();
-    if (AuthService.token == null) {
-  await AuthService.init();
-}
     allShops = await shopService.getShops();
 
-    // Manager filtering
+    // Manager sees only their segment
     if (role == "manager") {
-      users = users
-          .where((u) => u.segment.toLowerCase() == segment.toLowerCase())
-          .toList();
-
-      allShops = allShops
-          .where((s) => s.segment.toLowerCase() == segment.toLowerCase())
-          .toList();
+      users = users.where((u) => u.segment.toLowerCase() == segment.toLowerCase()).toList();
+      allShops = allShops.where((s) => s.segment.toLowerCase() == segment.toLowerCase()).toList();
     }
 
     setState(() => loading = false);
   }
 
+  // -----------------------------
+  // SAFE LOCATION HANDLER (WEB + MOBILE)
+  // -----------------------------
   Future<void> getUserLocation() async {
+    // WEB MODE
+    if (kIsWeb) {
+      try {
+        userLocation = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.low,
+        );
+      } catch (e) {
+        print("WEB Location Blocked, Using fallback");
+
+        userLocation = Position(
+          latitude: 0.0,
+          longitude: 0.0,
+          timestamp: DateTime.now(),
+          accuracy: 0,
+          altitude: 0,
+          heading: 0,
+          speed: 0,
+          speedAccuracy: 0,
+          altitudeAccuracy: 0,
+          headingAccuracy: 0,
+        );
+      }
+      return;
+    }
+
+    // MOBILE / WINDOWS MODE
     bool service = await Geolocator.isLocationServiceEnabled();
-    if (!service) return showMsg("Enable location service");
+    if (!service) return showMsg("Enable Location");
 
     LocationPermission perm = await Geolocator.checkPermission();
     if (perm == LocationPermission.denied) {
       perm = await Geolocator.requestPermission();
       if (perm == LocationPermission.denied) {
-        return showMsg("Location permission denied");
+        return showMsg("Location Permission Denied");
       }
     }
 
-    userLocation = await Geolocator.getCurrentPosition(
-      desiredAccuracy: LocationAccuracy.high,
-    );
+    try {
+      userLocation = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+    } catch (e) {
+      print("Mobile Location Error, using fallback");
+
+      userLocation = Position(
+        latitude: 0.0,
+        longitude: 0.0,
+        timestamp: DateTime.now(),
+        accuracy: 0,
+        altitude: 0,
+        heading: 0,
+        speed: 0,
+        speedAccuracy: 0,
+        altitudeAccuracy: 0,
+        headingAccuracy: 0,
+      );
+    }
   }
 
+  // -----------------------------
+  // FILTER SHOPS BY USER SEGMENT
+  // -----------------------------
   void filterShops() {
     if (selectedUser == null) return;
 
     setState(() {
       segmentShops = allShops
-          .where((s) =>
-              s.segment.toLowerCase() ==
-              selectedUser!.segment.toLowerCase())
+          .where((s) => s.segment.toLowerCase() == selectedUser!.segment.toLowerCase())
           .toList();
 
       selectedShopIds.clear();
     });
   }
 
+  // -----------------------------
+  // DISTANCE CALCULATION
+  // -----------------------------
   double distance(double lat1, double lon1, double lat2, double lon2) {
     const R = 6371;
     final dLat = (lat2 - lat1) * pi / 180;
@@ -112,39 +164,39 @@ class _AssignShopPageState extends State<AssignShopPage> {
     return R * 2 * atan2(sqrt(a), sqrt(1 - a));
   }
 
+  // -----------------------------
+  // ASSIGN SHOPS CLICK
+  // -----------------------------
   Future<void> assignShopsToSalesman() async {
     if (selectedUser == null) return showMsg("Select a user");
 
-    if (userLocation == null) {
-      return showMsg("Tap Assign Again to get location");
-    }
+    if (userLocation == null) return showMsg("Tap Assign Again to fetch location");
 
-    if (selectedShopIds.isEmpty) {
-      return showMsg("Select at least one shop");
+    if (selectedShopIds.isEmpty) return showMsg("Select at least one shop");
+
+    if (selectedShopIds.length > 5) {
+      return showMsg("You can assign only 5 shops");
     }
 
     List<Map<String, dynamic>> arranged = [];
-  if (selectedShopIds.length > 5) {
-  return showMsg("You can assign only 5 shops at a time");
-}
 
-  for (var shop in segmentShops) {
-  if (selectedShopIds.contains(shop.shopId.toString())) {
-    arranged.add({
-      "shop_id": shop.shopId.toString(),
-      "distance": distance(
-        userLocation!.latitude,
-        userLocation!.longitude,
-        shop.lat,
-        shop.lng,
-      ),
-    });
-  }
-}
+    for (var shop in segmentShops) {
+      if (selectedShopIds.contains(shop.shopId.toString())) {
+        arranged.add({
+          "shop_id": shop.shopId.toString(),
+          "distance": distance(
+            userLocation!.latitude,
+            userLocation!.longitude,
+            shop.lat,
+            shop.lng,
+          ),
+        });
+      }
+    }
+
     arranged.sort((a, b) => a["distance"].compareTo(b["distance"]));
 
-    List<String> finalShops =
-        arranged.map((e) => e["shop_id"].toString()).toList();
+    List<String> finalShops = arranged.map((e) => e["shop_id"].toString()).toList();
 
     bool ok = await assignService.assignShops(
       userId: selectedUser!.userId,
@@ -159,9 +211,7 @@ class _AssignShopPageState extends State<AssignShopPage> {
       Future.delayed(const Duration(milliseconds: 400), () {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(
-            builder: (_) => HomePage(user: AuthService.currentUser!),
-          ),
+          MaterialPageRoute(builder: (_) => HomePage(user: AuthService.currentUser!)),
         );
       });
     } else {
@@ -173,6 +223,9 @@ class _AssignShopPageState extends State<AssignShopPage> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(t)));
   }
 
+  // -----------------------------
+  // UI STARTS HERE
+  // -----------------------------
   @override
   Widget build(BuildContext context) {
     String role = AuthService.currentUser?["role"] ?? "";
@@ -180,8 +233,7 @@ class _AssignShopPageState extends State<AssignShopPage> {
     if (role != "master" && role != "manager") {
       return const Scaffold(
         body: Center(
-          child: Text("Access Denied",
-              style: TextStyle(fontSize: 20, color: Colors.red)),
+          child: Text("Access Denied", style: TextStyle(color: Colors.red, fontSize: 20)),
         ),
       );
     }
@@ -192,30 +244,21 @@ class _AssignShopPageState extends State<AssignShopPage> {
           gradient: LinearGradient(
             colors: [Color(0xFF007BFF), Color(0xFF66B2FF), Color(0xFFB8E0FF)],
             begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-          ),
+            end: Alignment.bottomCenter),
         ),
         child: SafeArea(
           child: loading
               ? const Center(child: CircularProgressIndicator())
               : Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
                       children: [
                         IconButton(
-                          icon: const Icon(Icons.arrow_back,
-                              size: 28, color: Colors.white),
+                          icon: const Icon(Icons.arrow_back, size: 28, color: Colors.white),
                           onPressed: () => Navigator.pop(context),
                         ),
-                        const Text(
-                          "Assign Shops",
-                          style: TextStyle(
-                            fontSize: 26,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
+                        const Text("Assign Shops",
+                            style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Colors.white)),
                       ],
                     ),
 
@@ -226,8 +269,7 @@ class _AssignShopPageState extends State<AssignShopPage> {
                         padding: const EdgeInsets.all(18),
                         decoration: const BoxDecoration(
                           color: Colors.white,
-                          borderRadius: BorderRadius.vertical(
-                              top: Radius.circular(30)),
+                          borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
                         ),
                         child: Column(
                           children: [
@@ -235,21 +277,18 @@ class _AssignShopPageState extends State<AssignShopPage> {
                               value: selectedUser,
                               decoration: customInput("Select User"),
                               items: users
-                                  .map(
-                                    (u) => DropdownMenuItem(
-                                      value: u,
-                                      child: Text("${u.name} (${u.segment})"),
-                                    ),
-                                  )
+                                  .map((u) =>
+                                      DropdownMenuItem(value: u, child: Text("${u.name} (${u.segment})")))
                                   .toList(),
                               onChanged: (u) {
-                                setState(() => selectedUser = u);
+                                selectedUser = u;
                                 filterShops();
                               },
                             ),
 
                             const SizedBox(height: 15),
 
+                            // SEARCH BOX
                             TextField(
                               controller: searchCtrl,
                               decoration: InputDecoration(
@@ -268,13 +307,10 @@ class _AssignShopPageState extends State<AssignShopPage> {
                                   segmentShops = allShops
                                       .where((s) =>
                                           s.segment.toLowerCase() ==
-                                          selectedUser!.segment
-                                              .toLowerCase())
+                                          selectedUser!.segment.toLowerCase())
                                       .where((s) =>
-                                          s.shopName.toLowerCase().contains(
-                                              txt.toLowerCase()) ||
-                                          s.address.toLowerCase().contains(
-                                              txt.toLowerCase()))
+                                          s.shopName.toLowerCase().contains(txt.toLowerCase()) ||
+                                          s.address.toLowerCase().contains(txt.toLowerCase()))
                                       .toList();
                                 });
                               },
@@ -288,34 +324,28 @@ class _AssignShopPageState extends State<AssignShopPage> {
                                 itemBuilder: (_, i) {
                                   final shop = segmentShops[i];
                                   final isChecked =
-                                      selectedShopIds.contains(shop.shopId);
+                                      selectedShopIds.contains(shop.shopId.toString());
 
                                   return Card(
                                     elevation: 2,
                                     child: CheckboxListTile(
                                       value: isChecked,
-                                      title: Text(
-                                        shop.shopName,
-                                        style: const TextStyle(
-                                            fontWeight: FontWeight.bold),
-                                      ),
+                                      title: Text(shop.shopName,
+                                          style: const TextStyle(fontWeight: FontWeight.bold)),
                                       subtitle: Text(shop.address),
                                       onChanged: (v) {
-  setState(() {
-    if (v == true) {
-
-      if (selectedShopIds.length >= 5) {
-        showMsg("You can assign only 5 shops at a time");
-        return;
-      }
-
-      selectedShopIds.add(shop.shopId.toString());
-    } else {
-      selectedShopIds.remove(shop.shopId.toString());
-    }
-  });
-},
-
+                                        setState(() {
+                                          if (v == true) {
+                                            if (selectedShopIds.length >= 5) {
+                                              showMsg("Maximum 5 shops allowed");
+                                              return;
+                                            }
+                                            selectedShopIds.add(shop.shopId.toString());
+                                          } else {
+                                            selectedShopIds.remove(shop.shopId.toString());
+                                          }
+                                        });
+                                      },
                                     ),
                                   );
                                 },
@@ -330,16 +360,12 @@ class _AssignShopPageState extends State<AssignShopPage> {
                                   await assignShopsToSalesman();
                                 },
                                 style: ElevatedButton.styleFrom(
-                                  padding:
-                                      const EdgeInsets.symmetric(vertical: 14),
+                                  padding: const EdgeInsets.symmetric(vertical: 14),
                                   shape: RoundedRectangleBorder(
-                                      borderRadius:
-                                          BorderRadius.circular(14)),
+                                      borderRadius: BorderRadius.circular(14)),
                                 ),
-                                child: const Text(
-                                  "Assign Shops",
-                                  style: TextStyle(fontSize: 18),
-                                ),
+                                child: const Text("Assign Shops",
+                                    style: TextStyle(fontSize: 18)),
                               ),
                             ),
                           ],
@@ -367,8 +393,7 @@ class _AssignShopPageState extends State<AssignShopPage> {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide:
-            const BorderSide(color: Colors.deepPurple, width: 2),
+        borderSide: const BorderSide(color: Colors.deepPurple, width: 2),
       ),
     );
   }

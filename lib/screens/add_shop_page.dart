@@ -6,9 +6,11 @@ import 'package:file_picker/file_picker.dart';
 import 'package:geolocator/geolocator.dart';
 import '../services/auth_service.dart';
 import 'package:flutter/foundation.dart';
+import '../helpers/location_helper.dart';
+import '../helpers/web_location_helper.dart';
 import 'package:http/http.dart' as http;
 
-// FOR WEB CAMERA DETECTION
+// ignore: avoid_web_libraries_in_flutter
 import 'dart:html' as html;
 
 class AddShopPage extends StatefulWidget {
@@ -30,9 +32,8 @@ class _AddShopPageState extends State<AddShopPage> {
 
   bool loading = false;
 
-
   // ==========================================================
-  // CAMERA DETECTION (WEB DESKTOP FAILS WITHOUT THIS)
+  // CHECK IF WEB HAS CAMERA
   // ==========================================================
   Future<bool> hasWebCamera() async {
     try {
@@ -46,9 +47,8 @@ class _AddShopPageState extends State<AddShopPage> {
     }
   }
 
-
   // ==========================================================
-  // POPUP: CAMERA OR GALLERY
+  // POPUP → CAMERA OR GALLERY
   // ==========================================================
   Future pickPhoto() async {
     showModalBottomSheet(
@@ -63,15 +63,13 @@ class _AddShopPageState extends State<AddShopPage> {
                 onTap: () async {
                   Navigator.pop(context);
 
-                  // 🚨 WEB CAMERA CHECK
                   if (kIsWeb) {
                     bool ok = await hasWebCamera();
-
                     if (!ok) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text("No Camera Detected")),
                       );
-                      _pickFromGallery(); // fallback
+                      _pickFromGallery();
                       return;
                     }
                   }
@@ -94,16 +92,13 @@ class _AddShopPageState extends State<AddShopPage> {
     );
   }
 
-
   // ==========================================================
-  // CAMERA MODE (WEB + MOBILE)
+  // CAMERA PICKER (WEB + MOBILE)
   // ==========================================================
   Future _pickFromCamera() async {
     if (kIsWeb) {
       final html.FileUploadInputElement input = html.FileUploadInputElement();
-
       input.accept = 'image/*;capture=camera';
-
       input.click();
 
       input.onChange.listen((event) {
@@ -112,12 +107,10 @@ class _AddShopPageState extends State<AddShopPage> {
 
         reader.readAsDataUrl(file);
         reader.onLoadEnd.listen((event) {
-          final base64 = reader.result.toString().split(',').last;
+          base64Image = reader.result.toString().split(',').last;
 
-          setState(() {
-            base64Image = base64;
-            imageFile = null;
-          });
+          imageFile = null;
+          setState(() {});
 
           getLocation();
         });
@@ -126,7 +119,6 @@ class _AddShopPageState extends State<AddShopPage> {
       return;
     }
 
-    // ANDROID / IOS CAMERA
     final picked = await ImagePicker().pickImage(source: ImageSource.camera);
 
     if (picked != null) {
@@ -138,10 +130,8 @@ class _AddShopPageState extends State<AddShopPage> {
     }
   }
 
-
-
   // ==========================================================
-  // GALLERY / FILE PICKER
+  // GALLERY PICKER
   // ==========================================================
   Future _pickFromGallery() async {
     if (kIsWeb) {
@@ -173,7 +163,6 @@ class _AddShopPageState extends State<AddShopPage> {
       return;
     }
 
-    // ANDROID / IOS GALLERY
     final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
 
     if (picked != null) {
@@ -185,31 +174,36 @@ class _AddShopPageState extends State<AddShopPage> {
     }
   }
 
-
-
   // ==========================================================
-  // GET LOCATION
+  // GET LOCATION (WEB BLOCK DETECTION + NORMAL LOGIC)
   // ==========================================================
   Future getLocation() async {
-    LocationPermission perm = await Geolocator.requestPermission();
+    if (kIsWeb) {
+      final blocked = await WebLocationHelper.isLocationBlocked();
+      if (blocked) {
+        WebLocationHelper.showLocationBlockedDialog(context);
 
-    if (perm == LocationPermission.denied ||
-        perm == LocationPermission.deniedForever) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Location blocked in browser settings")),
+        );
+        return;
+      }
+    }
+
+    final pos = await LocationHelper.getLocation();
+
+    if (pos == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Location Permission Required")),
+        const SnackBar(content: Text("Turn ON location & allow permission")),
       );
       return;
     }
-
-    Position pos = await Geolocator.getCurrentPosition();
 
     lat = pos.latitude;
     lng = pos.longitude;
 
     setState(() {});
   }
-
-
 
   // ==========================================================
   // SUBMIT SHOP
@@ -268,8 +262,6 @@ class _AddShopPageState extends State<AddShopPage> {
     }
   }
 
-
-
   // ==========================================================
   // UI
   // ==========================================================
@@ -279,9 +271,9 @@ class _AddShopPageState extends State<AddShopPage> {
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            colors: [Color(0xFF007BFF), Color(0xFF66B2FF), Color(0xFFB8E0FF)],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter),
+              colors: [Color(0xFF007BFF), Color(0xFF66B2FF), Color(0xFFB8E0FF)],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter),
         ),
         child: SafeArea(
           child: Column(
@@ -296,10 +288,9 @@ class _AddShopPageState extends State<AddShopPage> {
                   const Text(
                     "Add Shop",
                     style: TextStyle(
-                      fontSize: 26,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
+                        fontSize: 26,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white),
                   )
                 ],
               ),
@@ -360,7 +351,6 @@ class _AddShopPageState extends State<AddShopPage> {
       ),
     );
   }
-
 
   Widget _input(TextEditingController c, String label) {
     return TextField(
