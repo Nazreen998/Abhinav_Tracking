@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/shop_service.dart';
+import '../services/auth_service.dart';
+
 import '../models/shop_model.dart';
 
 class ShopListPage extends StatefulWidget {
@@ -35,16 +37,21 @@ class _ShopListPageState extends State<ShopListPage>
   }
 
   Future<void> _loadShops() async {
-    setState(() => loading = true);
+  setState(() => loading = true);
 
-    final data = await shopService.getShops();
-    shops = data;
-
-    _applyRoleFilters();
-
-    controller.forward(); // animation start
-    setState(() => loading = false);
+  // Ensure token is loaded
+  if (AuthService.token == null) {
+    await AuthService.init();
   }
+
+  final data = await shopService.getShops();
+  shops = data;
+  _applyRoleFilters();
+
+  controller.forward();
+  setState(() => loading = false);
+}
+
 
   void _applyRoleFilters() {
   String role = widget.user["role"] ?? "";

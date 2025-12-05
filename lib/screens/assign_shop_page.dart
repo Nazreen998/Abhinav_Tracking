@@ -48,6 +48,9 @@ class _AssignShopPageState extends State<AssignShopPage> {
     String segment = AuthService.currentUser?["segment"] ?? "";
 
     users = await userService.getUsers();
+    if (AuthService.token == null) {
+  await AuthService.init();
+}
     allShops = await shopService.getShops();
 
     // Manager filtering
@@ -121,6 +124,9 @@ class _AssignShopPageState extends State<AssignShopPage> {
     }
 
     List<Map<String, dynamic>> arranged = [];
+  if (selectedShopIds.length > 5) {
+  return showMsg("You can assign only 5 shops at a time");
+}
 
     for (var shop in segmentShops) {
       if (selectedShopIds.contains(shop.shopId)) {
@@ -296,15 +302,21 @@ class _AssignShopPageState extends State<AssignShopPage> {
                                       ),
                                       subtitle: Text(shop.address),
                                       onChanged: (v) {
-                                        setState(() {
-                                          if (v == true) {
-                                            selectedShopIds.add(shop.shopId);
-                                          } else {
-                                            selectedShopIds
-                                                .remove(shop.shopId);
-                                          }
-                                        });
-                                      },
+  setState(() {
+    if (v == true) {
+
+      if (selectedShopIds.length >= 5) {
+        showMsg("You can assign only 5 shops at a time");
+        return;
+      }
+
+      selectedShopIds.add(shop.shopId.toString());
+    } else {
+      selectedShopIds.remove(shop.shopId.toString());
+    }
+  });
+},
+
                                     ),
                                   );
                                 },

@@ -89,7 +89,7 @@ class _AddShopPageState extends State<AddShopPage> {
       "lng": lng,
       "image": base64Image,
       "segment": AuthService.currentUser?["segment"] ?? "all",
-      "created_by": AuthService.currentUser?["user_id"] ?? "",
+      "created_by": AuthService.currentUser?["_id"] ?? "",
     };
 
     final res = await http.post(

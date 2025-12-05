@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-
 import 'screens/login_page.dart';
 import 'screens/home_page.dart';
 import 'services/auth_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await AuthService.init();
   runApp(const AbhinavApp());
 }
 
@@ -27,12 +26,9 @@ class _AbhinavAppState extends State<AbhinavApp> {
   }
 
   Future<void> _loadInitialUser() async {
-    final prefs = await SharedPreferences.getInstance();
-    final savedUser = prefs.getString("currentUser");
-
     await Future.delayed(const Duration(seconds: 2));
 
-    if (savedUser != null && AuthService.currentUser != null) {
+    if (AuthService.token != null && AuthService.currentUser != null) {
       setState(() {
         currentPage = HomePage(user: AuthService.currentUser!);
       });
@@ -49,42 +45,21 @@ class _AbhinavAppState extends State<AbhinavApp> {
       title: "Abhinav Tracking",
       debugShowCheckedModeBanner: false,
 
-      theme: ThemeData(
-        primaryColor: const Color(0xFF0066FF),
-        scaffoldBackgroundColor: Colors.white,
-        fontFamily: 'Poppins',
-        elevatedButtonTheme: ElevatedButtonThemeData(
-          style: ElevatedButton.styleFrom(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14),
-            ),
-            backgroundColor: const Color(0xFF0066FF),
-            foregroundColor: Colors.white,
-            padding:
-                const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
-          ),
-        ),
-      ),
-
-      // 🚀 FINAL FIX: only 'home:' — remove "/" route
       home: currentPage,
 
       routes: {
         "/login": (_) => const LoginPage(),
         "/home": (_) {
-    if (AuthService.currentUser == null) {
-      return const LoginPage(); // fallback to login instead of crash
-    }
-    return HomePage(user: AuthService.currentUser!);
-  },
-},
-    
+          if (AuthService.currentUser == null) {
+            return const LoginPage();
+          }
+          return HomePage(user: AuthService.currentUser!);
+        },
+      },
     );
   }
 }
 
-
-// 🌈 SPLASH SCREEN
 class SplashScreen extends StatelessWidget {
   const SplashScreen({super.key});
 

@@ -11,18 +11,29 @@ class ShopService {
   String get pendingBaseUrl => "$base/pending";
 
   Future<List<ShopModel>> getShops() async {
-    final res = await http.get(
-      Uri.parse("$shopBaseUrl/all"),
-      headers: {"Authorization": "Bearer ${AuthService.token}"},
-    );
-
-    if (res.statusCode != 200) return [];
-
-    final body = jsonDecode(res.body);
-    final List shops = body["shops"] ?? [];
-
-    return shops.map((e) => ShopModel.fromJson(e)).toList();
+  // WAIT until token is loaded
+  if (AuthService.token == null) {
+    await AuthService.init();
   }
+
+  final res = await http.get(
+    Uri.parse("$shopBaseUrl/all"),
+    headers: {
+      "Authorization": "Bearer ${AuthService.token ?? ''}",
+    },
+  );
+
+  if (res.statusCode != 200) {
+    print("SHOP ERROR: ${res.body}");
+    return [];
+  }
+
+  final body = jsonDecode(res.body);
+  final List shops = body["shops"] ?? [];
+
+  return shops.map((e) => ShopModel.fromJson(e)).toList();
+}
+
 
   Future<bool> addPendingShop({
     required String name,

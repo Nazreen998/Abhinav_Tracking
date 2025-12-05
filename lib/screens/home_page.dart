@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-
 import '../services/auth_service.dart';
 import 'shop_list_page.dart';
 import 'pending_shops_page.dart';
@@ -20,7 +18,6 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage>
     with SingleTickerProviderStateMixin {
-
   static const Color darkBlue = Color(0xFF002D62);
 
   late AnimationController _controller;
@@ -36,8 +33,6 @@ class _HomePageState extends State<HomePage>
   }
 
   Future<void> logout() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove("currentUser");
     Navigator.pushNamedAndRemoveUntil(context, "/login", (_) => false);
   }
 
@@ -55,8 +50,6 @@ class _HomePageState extends State<HomePage>
     bool isSalesman = role == "salesman";
 
     return Scaffold(
-
-      // 🔥 LOGOUT BUTTON ADDED
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -71,8 +64,6 @@ class _HomePageState extends State<HomePage>
       extendBodyBehindAppBar: true,
 
       body: Container(
-
-        // 🌈 BLUE → PINK GRADIENT BACKGROUND
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             colors: [
@@ -92,7 +83,6 @@ class _HomePageState extends State<HomePage>
             children: [
               const SizedBox(height: 70),
 
-              // 🌈 WHITE USER CARD + DARK BLUE TEXT
               Container(
                 padding: const EdgeInsets.all(22),
                 decoration: BoxDecoration(
@@ -134,7 +124,6 @@ class _HomePageState extends State<HomePage>
 
               const SizedBox(height: 25),
 
-              // 🌈 DARK BLUE THEME GRID MENU
               GridView.count(
                 crossAxisCount: 2,
                 shrinkWrap: true,
@@ -142,75 +131,61 @@ class _HomePageState extends State<HomePage>
                 crossAxisSpacing: 18,
                 mainAxisSpacing: 18,
                 children: [
-
                   _tile(Icons.history, "History Log", () {
                     Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) =>
-                            LogHistoryFilterPage(user: widget.user),
-                      ),
-                    );
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) =>
+                                LogHistoryFilterPage(user: widget.user)));
                   }),
 
                   _tile(Icons.storefront, "Shop List", () {
                     Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => ShopListPage(user: widget.user),
-                      ),
-                    );
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) =>
+                                ShopListPage(user: widget.user)));
                   }),
 
                   if (isMaster || isManager)
                     _tile(Icons.pending_actions, "Pending Shops", () {
                       Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) =>
-                              PendingShopsPage(user: widget.user),
-                        ),
-                      );
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) =>
+                                  PendingShopsPage(user: widget.user)));
                     }),
 
                   if (isMaster || isManager)
                     _tile(Icons.map, "Assign Shops", () {
                       Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const AssignShopPage(),
-                        ),
-                      );
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => const AssignShopPage()));
                     }),
 
                   if (isMaster)
                     _tile(Icons.people_alt, "User List", () {
                       Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const UserListPage(),
-                        ),
-                      );
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => const UserListPage()));
                     }),
 
                   if (isSalesman)
                     _tile(Icons.add_business, "Add Shop", () {
                       Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const AddShopPage(),
-                        ),
-                      );
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => const AddShopPage()));
                     }),
 
                   if (isSalesman)
                     _tile(Icons.directions_walk, "Next Shop", () {
                       Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => NextShopPage(),
-                        ),
-                      );
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => NextShopPage()));
                     }),
                 ],
               ),
@@ -221,7 +196,6 @@ class _HomePageState extends State<HomePage>
     );
   }
 
-  // ⭐ WHITE TILE + DARK BLUE ICON + TEXT
   Widget _tile(IconData icon, String title, VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
@@ -242,14 +216,14 @@ class _HomePageState extends State<HomePage>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 40, color: darkBlue),     // ⭐ DARK BLUE ICON
+            Icon(icon, size: 40, color: darkBlue),
             const SizedBox(height: 10),
             Text(
               title,
               style: const TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.bold,
-                  color: darkBlue),                    // ⭐ DARK BLUE TEXT
+                  color: darkBlue),
               textAlign: TextAlign.center,
             ),
           ],

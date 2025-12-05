@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../services/auth_service.dart';
 import 'home_page.dart';
 
@@ -48,9 +47,6 @@ class _LoginPageState extends State<LoginPage>
     setState(() => loading = false);
 
     if (ok) {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString("currentUser", "1");
-
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
@@ -71,8 +67,6 @@ class _LoginPageState extends State<LoginPage>
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-
-        // 🌈 BLUE → PINK GRADIENT
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             colors: [
@@ -93,13 +87,13 @@ class _LoginPageState extends State<LoginPage>
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(Icons.location_on,
-                    size: 100, color: darkBlue),   // ⭐ DARK BLUE ICON
+                    size: 100, color: darkBlue),
                 const SizedBox(height: 25),
 
                 const Text(
                   "ABHINAV TRACKING APP",
                   style: TextStyle(
-                    color: darkBlue,               // ⭐ DARK BLUE
+                    color: darkBlue,
                     fontSize: 25,
                     fontWeight: FontWeight.bold,
                     letterSpacing: 1.5,
@@ -119,11 +113,12 @@ class _LoginPageState extends State<LoginPage>
                     : ElevatedButton(
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.white,
-                          foregroundColor: darkBlue,    // ⭐ DARK BLUE TEXT
+                          foregroundColor: darkBlue,
                           padding: const EdgeInsets.symmetric(
                               vertical: 15, horizontal: 40),
                           shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14)),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
                         ),
                         onPressed: loginUser,
                         child: const Text(
@@ -140,7 +135,6 @@ class _LoginPageState extends State<LoginPage>
     );
   }
 
-  // ⭐ WHITE INPUT BOX + DARK BLUE TEXT
   Widget _inputBox(String label, TextEditingController ctrl) {
     return TextField(
       controller: ctrl,
@@ -162,7 +156,6 @@ class _LoginPageState extends State<LoginPage>
     );
   }
 
-  // ⭐ PASSWORD FIELD
   Widget _passwordBox() {
     return TextField(
       controller: passCtrl,
@@ -177,7 +170,7 @@ class _LoginPageState extends State<LoginPage>
           onPressed: () => setState(() => showPass = !showPass),
           icon: Icon(
             showPass ? Icons.visibility : Icons.visibility_off,
-            color: darkBlue,   // ⭐ DARK BLUE
+            color: darkBlue,
           ),
         ),
         enabledBorder: OutlineInputBorder(
