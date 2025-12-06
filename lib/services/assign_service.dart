@@ -56,6 +56,15 @@ class AssignService {
     }
 
     final data = jsonDecode(res.body);
-    return data["shops"] ?? [];
+    final shops = data["shops"] ?? [];
+return shops.map((s) => {
+  "shop_id": s["shop_id"],
+  "shop_name": s["shop_name"] ?? "",
+  "address": s["address"] ?? "",
+  "lat": s["lat"],
+  "lng": s["lng"],
+  "sequence": s["sequence"]
+}).toList();
+
   }
 }
