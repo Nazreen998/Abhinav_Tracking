@@ -1,7 +1,11 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'dart:convert';
 import 'dart:math';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+
 import '../helpers/exif_helper.dart';
 import '../services/auth_service.dart';
 import '../services/visit_service.dart';
@@ -19,12 +23,14 @@ class _MatchPageState extends State<MatchPage> {
   bool processing = false;
 
   String? previewImageBase64;
+  String? uploadedPhotoUrl;
   double? photoLat;
   double? photoLng;
   double? distanceDiff;
-  String? uploadedPhotoUrl;
 
-  // Haversine distance (meters)
+  // -----------------------------------------------
+  // HAVERSINE DISTANCE (meters)
+  // -----------------------------------------------
   double calcDistance(double lat1, double lon1, double lat2, double lon2) {
     const R = 6371000; // meters
     final dLat = (lat2 - lat1) * pi / 180;
@@ -39,7 +45,9 @@ class _MatchPageState extends State<MatchPage> {
     return R * 2 * atan2(sqrt(a), sqrt(1 - a));
   }
 
-  /// CAPTURE → EXIF GPS → UPLOAD PHOTO → SEND VISIT
+  // -----------------------------------------------
+  // CAPTURE → GPS → UPLOAD → MATCH → SAVE VISIT
+  // -----------------------------------------------
   Future<void> captureAndMatch() async {
     setState(() => processing = true);
 
@@ -51,11 +59,11 @@ class _MatchPageState extends State<MatchPage> {
       return;
     }
 
-    // Convert to BASE64
+    // Convert to base64
     final bytes = await img.readAsBytes();
     previewImageBase64 = base64Encode(bytes);
 
-    // Extract EXIF GPS from photo
+    // Extract EXIF GPS
     final gps = ExifHelper.extractGPS(bytes);
     photoLat = gps["lat"];
     photoLng = gps["lng"];
@@ -63,7 +71,7 @@ class _MatchPageState extends State<MatchPage> {
     if (photoLat == null || photoLng == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text("❌ Photo has no GPS data! Turn ON Location in Camera."),
+          content: Text("❌ No GPS found in this photo. Enable Location in Camera."),
           backgroundColor: Colors.red,
         ),
       );
@@ -77,18 +85,17 @@ class _MatchPageState extends State<MatchPage> {
       "visit_${DateTime.now().millisecondsSinceEpoch}.jpg",
     );
 
-    // Shop coordinates
+    // Shop location
     double shopLat = widget.shop["lat"] * 1.0;
     double shopLng = widget.shop["lng"] * 1.0;
 
-    // Calculate distance
+    // Calculate meters
     distanceDiff = calcDistance(shopLat, shopLng, photoLat!, photoLng!);
 
-    // ------ IMPORTANT UPDATE ------
-    // Match if within 50 meters radius
+    // 50 meters threshold
     String result = distanceDiff! <= 50 ? "match" : "mismatch";
 
-    // Create payload
+    // VISIT PAYLOAD
     final payload = {
       "salesman_id": AuthService.currentUser!["user_id"],
       "shop_id": widget.shop["shop_id"],
@@ -97,14 +104,14 @@ class _MatchPageState extends State<MatchPage> {
       "photo_url": uploadedPhotoUrl ?? "",
     };
 
-    // Send visit to backend
-    final ok = await visitService.visitShop(payload);
+    await visitService.visitShop(payload);
 
-    // Show result
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          result == "match" ? "MATCH ✔ (within 50m)" : "MISMATCH ❌ (outside 50m)",
+          result == "match"
+              ? "MATCH ✔ (within 50 meters)"
+              : "MISMATCH ❌ (outside 50 meters)",
         ),
         backgroundColor: result == "match" ? Colors.green : Colors.red,
       ),
@@ -114,19 +121,41 @@ class _MatchPageState extends State<MatchPage> {
     setState(() => processing = false);
   }
 
+  // -----------------------------------------------
+  // BUILD UI
+  // -----------------------------------------------
   @override
   Widget build(BuildContext context) {
     final s = widget.shop;
+
+    // ❌ Web cannot capture GPS from image → Show warning
+    if (kIsWeb) {
+      return Scaffold(
+        appBar: AppBar(title: const Text("Match Shop")),
+        body: const Center(
+          child: Text(
+            "❌ MATCH feature is not supported on Web.\nPlease use Android mobile app.",
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 20, color: Colors.red),
+          ),
+        ),
+      );
+    }
 
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            colors: [Color(0xFF007BFF), Color(0xFF66B2FF), Color(0xFFB8E0FF)],
+            colors: [
+              Color(0xFF007BFF),
+              Color(0xFF66B2FF),
+              Color(0xFFB8E0FF),
+            ],
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
           ),
         ),
+
         child: SafeArea(
           child: Column(
             children: [
@@ -140,17 +169,18 @@ class _MatchPageState extends State<MatchPage> {
                   const Text(
                     "Match Shop",
                     style: TextStyle(
-                      fontSize: 26,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
+                        fontSize: 26,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white),
                   ),
                 ],
               ),
 
               const SizedBox(height: 15),
 
+              // -------------------------
               // SHOP CARD
+              // -------------------------
               Container(
                 padding: const EdgeInsets.all(20),
                 margin: const EdgeInsets.symmetric(horizontal: 20),
@@ -163,15 +193,16 @@ class _MatchPageState extends State<MatchPage> {
                     Text(
                       s["shop_name"],
                       style: const TextStyle(
-                          fontSize: 22, fontWeight: FontWeight.bold),
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     Text(
-                      s["address"],
-                      style:
-                          const TextStyle(fontSize: 15, color: Colors.grey),
+                      s["address"] ?? "",
+                      style: const TextStyle(fontSize: 15, color: Colors.grey),
                     ),
                     const SizedBox(height: 5),
-                    Text("Lat: ${s["lat"]}, Lng: ${s["lng"]}"),
+                    Text("Lat: ${s["lat"]}   Lng: ${s["lng"]}"),
                   ],
                 ),
               ),
@@ -194,7 +225,7 @@ class _MatchPageState extends State<MatchPage> {
 
               const SizedBox(height: 20),
 
-              // DISTANCE SHOWN
+              // DISTANCE DISPLAY
               if (distanceDiff != null)
                 Text(
                   "Distance: ${distanceDiff!.toStringAsFixed(1)} meters",
@@ -206,12 +237,16 @@ class _MatchPageState extends State<MatchPage> {
 
               const SizedBox(height: 20),
 
-              // MATCH BUTTON
+              // CAPTURE BUTTON
               ElevatedButton.icon(
                 onPressed: processing ? null : captureAndMatch,
                 icon: const Icon(Icons.camera_alt),
-                label: Text(processing ? "Processing..." : "Capture & Match"),
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                label: Text(
+                  processing ? "Processing..." : "Capture & Match",
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green,
+                ),
               ),
             ],
           ),
